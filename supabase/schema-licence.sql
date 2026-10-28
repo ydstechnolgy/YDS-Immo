@@ -196,8 +196,5 @@ begin
 end
 $$;
 
--- Utilisation (à lancer à part, quand tu veux créer ou prolonger une licence) :
---   select public.generate_licence(12, 'Nom du client');   -- licence d'un an, renvoie la clé
---   select public.extend_licence('YDS-XXXX-XXXX-XXXX', 1); -- ajoute 1 mois
---   -- Libérer un appareil (client qui change de PC) :
---   -- delete from public.licence_devices where licence_id = (select id from public.licences where key = 'YDS-XXXX-XXXX-XXXX') and kind = 'pc';
+-- Création, prolongation et gestion des licences : utiliser l'outil séparé du dossier "admin"
+-- (il demande de lancer ensuite supabase/schema-admin.sql).
