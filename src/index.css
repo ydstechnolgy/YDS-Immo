@@ -135,3 +135,6 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); bord
 .status-bar { display: flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--muted); }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); }
 .dot.off { background: var(--warn); }
+
+.syncbar { display: none; justify-content: flex-end; margin: -6px 0 8px; }
+@media (max-width: 800px) { .syncbar { display: flex; } }

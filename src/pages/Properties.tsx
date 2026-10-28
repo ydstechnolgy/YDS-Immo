@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Camera, Crosshair, ImageIcon, MapPin, Phone, Plus, Share2, Trash2, MessageCircle } from 'lucide-react'
-import { db } from '../db'
+import { db, newId } from '../db'
 import {
   EQUIPMENTS,
   KINDS,
@@ -110,7 +110,7 @@ export function PropertyForm() {
   const { id } = useParams()
   const nav = useNavigate()
   const owners = useLiveQuery(() => db.owners.orderBy('name').toArray(), [])
-  const existing = useLiveQuery(() => (id ? db.properties.get(Number(id)) : undefined), [id])
+  const existing = useLiveQuery(() => (id ? db.properties.get(String(id)) : undefined), [id])
   const [form, setForm] = useState<Property | null>(id ? null : emptyProperty())
   const [gpsMsg, setGpsMsg] = useState('')
 
@@ -149,8 +149,8 @@ export function PropertyForm() {
       await db.properties.put(data)
       nav(`/biens/${id}`, { replace: true })
     } else {
-      const newId = await db.properties.add(data)
-      nav(`/biens/${newId}`, { replace: true })
+      const createdId = await db.properties.add({ ...data, id: newId() })
+      nav(`/biens/${createdId}`, { replace: true })
     }
   }
 
@@ -177,7 +177,7 @@ export function PropertyForm() {
       </Field>
 
       <Field label="Propriétaire">
-        <select value={form.ownerId ?? ''} onChange={(e) => set('ownerId', e.target.value ? Number(e.target.value) : undefined)}>
+        <select value={form.ownerId ?? ''} onChange={(e) => set('ownerId', e.target.value || undefined)}>
           <option value="">— Aucun / à ajouter plus tard —</option>
           {(owners ?? []).map((o) => (
             <option key={o.id} value={o.id}>
@@ -315,9 +315,9 @@ export function PropertyForm() {
 export function PropertyDetail() {
   const { id } = useParams()
   const nav = useNavigate()
-  const p = useLiveQuery(() => db.properties.get(Number(id)), [id])
+  const p = useLiveQuery(() => db.properties.get(String(id)), [id])
   const owner = useLiveQuery(async () => (p?.ownerId ? db.owners.get(p.ownerId) : undefined), [p?.ownerId])
-  const visits = useLiveQuery(() => db.visits.where('propertyId').equals(Number(id)).toArray(), [id])
+  const visits = useLiveQuery(() => db.visits.where('propertyId').equals(String(id)).toArray(), [id])
   const [busy, setBusy] = useState(false)
 
   if (!p) return <Top title="Bien" />

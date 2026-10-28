@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus, Trash2 } from 'lucide-react'
-import { db } from '../db'
+import { db, newId } from '../db'
 import { kindLabel, type Commission } from '../types'
 import { Empty, Field, NumInput, Top, confirmDelete, settings } from '../ui'
 import { fcfa, formatDate, today } from '../utils'
@@ -10,7 +10,7 @@ import { fcfa, formatDate, today } from '../utils'
 export function CommissionList() {
   const list = useLiveQuery(() => db.commissions.orderBy('date').reverse().toArray(), [])
   const props = useLiveQuery(() => db.properties.toArray(), [])
-  const pName = (id: number) => {
+  const pName = (id: string) => {
     const p = props?.find((x) => x.id === id)
     return p ? p.title || `${kindLabel(p.kind)} ${p.quarter}` : 'Bien supprimé'
   }
@@ -64,7 +64,7 @@ export function CommissionForm() {
   const [sp] = useSearchParams()
   const props = useLiveQuery(() => db.properties.toArray(), [])
   const [form, setForm] = useState<Commission>({
-    propertyId: Number(sp.get('bien')) || 0,
+    propertyId: sp.get('bien') || '',
     total: 0,
     received: 0,
     note: '',
@@ -80,7 +80,7 @@ export function CommissionForm() {
   const save = async () => {
     if (!form.propertyId) return alert('Choisis le bien concerné.')
     if (!form.total) return alert('Indique le montant de ta commission.')
-    await db.commissions.add(form)
+    await db.commissions.add({ ...form, id: newId() })
     nav(-1)
   }
 
@@ -88,7 +88,7 @@ export function CommissionForm() {
     <>
       <Top title="Nouvelle commission" />
       <Field label="Bien concerné">
-        <select value={form.propertyId || ''} onChange={(e) => set('propertyId', Number(e.target.value))}>
+        <select value={form.propertyId || ''} onChange={(e) => set('propertyId', e.target.value)}>
           <option value="">— Choisir —</option>
           {(props ?? []).map((p) => (
             <option key={p.id} value={p.id}>{p.title || kindLabel(p.kind)} · {p.quarter} · {fcfa(p.price)}</option>

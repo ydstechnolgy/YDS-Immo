@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Phone, Plus, Trash2, UserSearch } from 'lucide-react'
-import { db } from '../db'
+import { db, newId } from '../db'
 import { KINDS, kindLabel, type Client } from '../types'
 import { Empty, Field, NumInput, StatusBadge, Top, confirmDelete } from '../ui'
 import { fcfa, matchScore, waLink } from '../utils'
@@ -41,7 +41,7 @@ export function ClientList() {
 export function ClientForm() {
   const { id } = useParams()
   const nav = useNavigate()
-  const existing = useLiveQuery(() => (id ? db.clients.get(Number(id)) : undefined), [id])
+  const existing = useLiveQuery(() => (id ? db.clients.get(String(id)) : undefined), [id])
   const blank: Client = { name: '', phone: '', deal: 'location', kind: '', budgetMax: 0, quarter: '', note: '', createdAt: Date.now() }
   const [form, setForm] = useState<Client | null>(id ? null : blank)
   if (id && existing && !form) setForm(existing)
@@ -51,7 +51,7 @@ export function ClientForm() {
   const save = async () => {
     if (!form.name.trim()) return alert('Écris le nom du client.')
     if (id) await db.clients.put(form)
-    else await db.clients.add(form)
+    else await db.clients.add({ ...form, id: newId() })
     nav(-1)
   }
 
@@ -102,9 +102,9 @@ export function ClientForm() {
 export function ClientDetail() {
   const { id } = useParams()
   const nav = useNavigate()
-  const c = useLiveQuery(() => db.clients.get(Number(id)), [id])
+  const c = useLiveQuery(() => db.clients.get(String(id)), [id])
   const props = useLiveQuery(() => db.properties.toArray(), [])
-  const visits = useLiveQuery(() => db.visits.where('clientId').equals(Number(id)).toArray(), [id])
+  const visits = useLiveQuery(() => db.visits.where('clientId').equals(String(id)).toArray(), [id])
   if (!c) return <Top title="Client" />
 
   const matches = (props ?? []).filter((p) => matchScore(c, p))

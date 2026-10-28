@@ -12,17 +12,18 @@ export type Mandate = 'simple' | 'exclusif'
 export type Feedback = 'en_attente' | 'interesse' | 'a_rappeler' | 'pas_interesse'
 
 export interface Owner {
-  id?: number
+  id?: string
   name: string
   phone: string
   whatsapp: string
   note: string
   createdAt: number
+  updatedAt?: number
 }
 
 export interface Property {
-  id?: number
-  ownerId?: number
+  id?: string
+  ownerId?: string
   kind: Kind
   deal: Deal
   title: string
@@ -47,7 +48,7 @@ export interface Property {
 }
 
 export interface Client {
-  id?: number
+  id?: string
   name: string
   phone: string
   deal: Deal
@@ -56,27 +57,30 @@ export interface Client {
   quarter: string
   note: string
   createdAt: number
+  updatedAt?: number
 }
 
 export interface Visit {
-  id?: number
-  propertyId: number
-  clientId?: number
+  id?: string
+  propertyId: string
+  clientId?: string
   date: string
   feedback: Feedback
   note: string
   createdAt: number
+  updatedAt?: number
 }
 
 export interface Commission {
-  id?: number
-  propertyId: number
-  clientId?: number
+  id?: string
+  propertyId: string
+  clientId?: string
   total: number
   received: number
   note: string
   date: string
   createdAt: number
+  updatedAt?: number
 }
 
 export const KINDS: { value: Kind; label: string }[] = [

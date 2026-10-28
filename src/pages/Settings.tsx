@@ -1,6 +1,8 @@
-import { useState } from 'react'
-import { Download, Upload } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Download, LogOut, RefreshCw, Upload } from 'lucide-react'
 import { db } from '../db'
+import { supabase } from '../supabase'
+import { signOutSafely, syncNow, useSyncInfo } from '../sync'
 import { Field, Top, settings } from '../ui'
 
 export function SettingsPage() {
@@ -9,6 +11,18 @@ export function SettingsPage() {
   const [phone, setPhone] = useState(s.phone)
   const [rate, setRate] = useState(String(s.rate || ''))
   const [saved, setSaved] = useState(false)
+  const [email, setEmail] = useState('')
+  const [outMsg, setOutMsg] = useState('')
+  const sync = useSyncInfo()
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setEmail(data.session?.user.email ?? ''))
+  }, [])
+
+  const logout = async () => {
+    if (!window.confirm('Te déconnecter ? Les données de cet appareil seront effacées après envoi au serveur.')) return
+    const r = await signOutSafely()
+    if (!r.ok) setOutMsg(r.message ?? '')
+  }
 
   const save = () => {
     settings.set('agentName', name)
@@ -52,6 +66,24 @@ export function SettingsPage() {
   return (
     <>
       <Top title="Réglages" />
+      <h2>Mon compte</h2>
+      <div className="card">
+        <div className="kv"><span>Email</span><span>{email || '—'}</span></div>
+        <div className="kv">
+          <span>Synchronisation</span>
+          <span>
+            {sync.state === 'syncing' ? 'En cours…' : sync.state === 'offline' ? 'Hors ligne' : sync.state === 'error' ? 'Erreur' : 'À jour'}
+            {sync.lastSync ? ` · ${new Date(sync.lastSync).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : ''}
+          </span>
+        </div>
+        {sync.error && <p className="small" style={{ color: 'var(--bad)' }}>{sync.error}</p>}
+        <div className="row wrap" style={{ marginTop: 10 }}>
+          <button className="btn alt sm grow" onClick={() => void syncNow()}><RefreshCw size={18} /> Synchroniser maintenant</button>
+          <button className="btn danger sm" onClick={logout}><LogOut size={18} /> Déconnexion</button>
+        </div>
+        {outMsg && <p className="small" style={{ color: 'var(--warn)' }}>{outMsg}</p>}
+      </div>
+
       <h2>Mes infos</h2>
       <p className="muted small">Elles apparaissent sur les fiches que tu partages avec tes clients.</p>
       <Field label="Mon nom">

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Phone, Plus, Trash2, User } from 'lucide-react'
-import { db } from '../db'
+import { db, newId } from '../db'
 import type { Owner } from '../types'
 import { kindLabel } from '../types'
 import { Empty, Field, StatusBadge, Top, confirmDelete } from '../ui'
@@ -13,7 +13,7 @@ export function OwnerList() {
   const props = useLiveQuery(() => db.properties.toArray(), [])
   const [q, setQ] = useState('')
   const list = (owners ?? []).filter((o) => `${o.name} ${o.phone}`.toLowerCase().includes(q.toLowerCase()))
-  const count = (id?: number) => (props ?? []).filter((p) => p.ownerId === id).length
+  const count = (id?: string) => (props ?? []).filter((p) => p.ownerId === id).length
 
   return (
     <>
@@ -42,7 +42,7 @@ export function OwnerList() {
 export function OwnerForm() {
   const { id } = useParams()
   const nav = useNavigate()
-  const existing = useLiveQuery(() => (id ? db.owners.get(Number(id)) : undefined), [id])
+  const existing = useLiveQuery(() => (id ? db.owners.get(String(id)) : undefined), [id])
   const blank: Owner = { name: '', phone: '', whatsapp: '', note: '', createdAt: Date.now() }
   const [form, setForm] = useState<Owner | null>(id ? null : blank)
 
@@ -56,7 +56,7 @@ export function OwnerForm() {
       await db.owners.put(form)
       nav(-1)
     } else {
-      await db.owners.add(form)
+      await db.owners.add({ ...form, id: newId() })
       nav(-1)
     }
   }
@@ -86,8 +86,8 @@ export function OwnerForm() {
 export function OwnerDetail() {
   const { id } = useParams()
   const nav = useNavigate()
-  const o = useLiveQuery(() => db.owners.get(Number(id)), [id])
-  const props = useLiveQuery(() => db.properties.where('ownerId').equals(Number(id)).toArray(), [id])
+  const o = useLiveQuery(() => db.owners.get(String(id)), [id])
+  const props = useLiveQuery(() => db.properties.where('ownerId').equals(String(id)).toArray(), [id])
   if (!o) return <Top title="Propriétaire" />
 
   const remove = async () => {

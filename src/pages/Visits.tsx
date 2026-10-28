@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus, Trash2 } from 'lucide-react'
-import { db } from '../db'
+import { db, newId } from '../db'
 import { FEEDBACKS, feedbackLabel, kindLabel, type Feedback, type Visit } from '../types'
 import { Empty, Field, Top, confirmDelete } from '../ui'
 import { formatDate, today } from '../utils'
@@ -14,11 +14,11 @@ export function VisitList() {
   const visits = useLiveQuery(() => db.visits.orderBy('date').reverse().toArray(), [])
   const props = useLiveQuery(() => db.properties.toArray(), [])
   const clients = useLiveQuery(() => db.clients.toArray(), [])
-  const pName = (id: number) => {
+  const pName = (id: string) => {
     const p = props?.find((x) => x.id === id)
     return p ? p.title || `${kindLabel(p.kind)} ${p.quarter}` : 'Bien supprimé'
   }
-  const cName = (id?: number) => clients?.find((x) => x.id === id)?.name
+  const cName = (id?: string) => clients?.find((x) => x.id === id)?.name
 
   const upcoming = (visits ?? []).filter((v) => v.date >= today())
   const past = (visits ?? []).filter((v) => v.date < today())
@@ -71,8 +71,8 @@ export function VisitForm() {
   const props = useLiveQuery(() => db.properties.toArray(), [])
   const clients = useLiveQuery(() => db.clients.orderBy('name').toArray(), [])
   const [form, setForm] = useState<Visit>({
-    propertyId: Number(sp.get('bien')) || 0,
-    clientId: Number(sp.get('client')) || undefined,
+    propertyId: sp.get('bien') || '',
+    clientId: sp.get('client') || undefined,
     date: today(),
     feedback: 'en_attente',
     note: '',
@@ -82,7 +82,7 @@ export function VisitForm() {
 
   const save = async () => {
     if (!form.propertyId) return alert('Choisis le bien visité.')
-    await db.visits.add(form)
+    await db.visits.add({ ...form, id: newId() })
     nav(-1)
   }
 
@@ -90,7 +90,7 @@ export function VisitForm() {
     <>
       <Top title="Nouvelle visite" />
       <Field label="Bien visité">
-        <select value={form.propertyId || ''} onChange={(e) => set('propertyId', Number(e.target.value))}>
+        <select value={form.propertyId || ''} onChange={(e) => set('propertyId', e.target.value)}>
           <option value="">— Choisir —</option>
           {(props ?? []).map((p) => (
             <option key={p.id} value={p.id}>
@@ -100,7 +100,7 @@ export function VisitForm() {
         </select>
       </Field>
       <Field label="Client">
-        <select value={form.clientId ?? ''} onChange={(e) => set('clientId', e.target.value ? Number(e.target.value) : undefined)}>
+        <select value={form.clientId ?? ''} onChange={(e) => set('clientId', e.target.value || undefined)}>
           <option value="">— Aucun / inconnu —</option>
           {(clients ?? []).map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>

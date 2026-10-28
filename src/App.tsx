@@ -8,24 +8,53 @@ import { ClientDetail, ClientForm, ClientList } from './pages/Clients'
 import { VisitForm, VisitList } from './pages/Visits'
 import { CommissionForm, CommissionList } from './pages/Commissions'
 import { SettingsPage } from './pages/Settings'
+import { AuthScreen } from './pages/Auth'
+import { supabase } from './supabase'
+import { prepareForUser, startSync, useSyncInfo } from './sync'
+import type { Session } from '@supabase/supabase-js'
 
-function useOnline() {
-  const [on, setOn] = useState(navigator.onLine)
+function useSession() {
+  const [session, setSession] = useState<Session | null>(null)
+  const [ready, setReady] = useState(false)
   useEffect(() => {
-    const a = () => setOn(true)
-    const b = () => setOn(false)
-    window.addEventListener('online', a)
-    window.addEventListener('offline', b)
+    let alive = true
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (data.session) await prepareForUser(data.session.user.id)
+      if (!alive) return
+      setSession(data.session)
+      setReady(true)
+      if (data.session) startSync()
+    })
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, sess) => {
+      if (event === 'SIGNED_IN' && sess) {
+        await prepareForUser(sess.user.id)
+        startSync()
+      }
+      setSession(sess)
+    })
     return () => {
-      window.removeEventListener('online', a)
-      window.removeEventListener('offline', b)
+      alive = false
+      sub.subscription.unsubscribe()
     }
   }, [])
-  return on
+  return { session, ready }
+}
+
+function SyncPill() {
+  const i = useSyncInfo()
+  const label =
+    i.state === 'syncing' ? 'Synchronisation…' : i.state === 'offline' ? 'Hors ligne' : i.state === 'error' ? 'Erreur de synchro' : 'Synchronisé'
+  return (
+    <div className="status-bar">
+      <span className={`dot ${i.state === 'idle' || i.state === 'syncing' ? '' : 'off'}`} /> {label}
+    </div>
+  )
 }
 
 export default function App() {
-  const online = useOnline()
+  const { session, ready } = useSession()
+  if (!ready) return <div className="empty" style={{ paddingTop: 120 }}>Chargement…</div>
+  if (!session) return <AuthScreen />
   return (
     <HashRouter>
       <div className="app">
@@ -38,12 +67,13 @@ export default function App() {
           <NavLink to="/visites"><CalendarCheck size={20} /> Visites</NavLink>
           <NavLink to="/commissions"><HandCoins size={20} /> Commissions</NavLink>
           <NavLink to="/reglages"><Settings size={20} /> Réglages</NavLink>
-          <div className="status-bar" style={{ position: 'absolute', bottom: 18, left: 24 }}>
-            <span className={`dot ${online ? '' : 'off'}`} /> {online ? 'En ligne' : 'Hors ligne'}
+          <div style={{ position: 'absolute', bottom: 18, left: 24 }}>
+            <SyncPill />
           </div>
         </nav>
 
         <main className="main">
+          <div className="syncbar"><SyncPill /></div>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/biens" element={<PropertyList />} />
