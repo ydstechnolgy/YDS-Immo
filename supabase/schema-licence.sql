@@ -81,6 +81,7 @@ declare
   uid uuid := auth.uid();
   l public.licences;
   n int;
+  lim int;
 begin
   if uid is null then
     return jsonb_build_object('ok', false, 'error', 'not_logged_in');
@@ -105,7 +106,8 @@ begin
      where licence_id = l.id and device_id = p_device_id;
   else
     select count(*) into n from public.licence_devices where licence_id = l.id and kind = p_kind;
-    if n >= case when p_kind = 'pc' then l.max_pc else l.max_phone end then
+    lim := case when p_kind = 'pc' then l.max_pc else l.max_phone end;
+    if n >= lim then
       return jsonb_build_object('ok', false, 'error', 'device_limit', 'kind', p_kind);
     end if;
     insert into public.licence_devices (licence_id, device_id, kind) values (l.id, p_device_id, p_kind);
