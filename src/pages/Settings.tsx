@@ -3,6 +3,7 @@ import { Download, LogOut, RefreshCw, Upload } from 'lucide-react'
 import { db } from '../db'
 import { supabase } from '../supabase'
 import { signOutSafely, syncNow, useSyncInfo } from '../sync'
+import { deviceKind, formatExpiry, readCache } from '../licence'
 import { Field, Top, settings } from '../ui'
 
 export function SettingsPage() {
@@ -69,6 +70,8 @@ export function SettingsPage() {
       <h2>Mon compte</h2>
       <div className="card">
         <div className="kv"><span>Email</span><span>{email || '—'}</span></div>
+        <div className="kv"><span>Licence valable jusqu'au</span><span>{formatExpiry(readCache()?.expiresAt) || '—'}</span></div>
+        <div className="kv"><span>Cet appareil</span><span>{deviceKind() === 'phone' ? 'Téléphone' : 'PC'}</span></div>
         <div className="kv">
           <span>Synchronisation</span>
           <span>

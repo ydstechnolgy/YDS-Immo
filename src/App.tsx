@@ -9,6 +9,8 @@ import { VisitForm, VisitList } from './pages/Visits'
 import { CommissionForm, CommissionList } from './pages/Commissions'
 import { SettingsPage } from './pages/Settings'
 import { AuthScreen } from './pages/Auth'
+import { LicenceScreen } from './pages/LicenceScreen'
+import { checkLicence, clearLicenceCache, type LicenceResult } from './licence'
 import { supabase } from './supabase'
 import { prepareForUser, startSync, useSyncInfo } from './sync'
 import type { Session } from '@supabase/supabase-js'
@@ -23,13 +25,12 @@ function useSession() {
       if (!alive) return
       setSession(data.session)
       setReady(true)
-      if (data.session) startSync()
     })
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, sess) => {
       if (event === 'SIGNED_IN' && sess) {
         await prepareForUser(sess.user.id)
-        startSync()
       }
+      if (event === 'SIGNED_OUT') clearLicenceCache()
       setSession(sess)
     })
     return () => {
@@ -51,10 +52,43 @@ function SyncPill() {
   )
 }
 
+function Gate({ session }: { session: Session }) {
+  const uid = session.user.id
+  const [lic, setLic] = useState<LicenceResult | null>(null)
+  const run = async () => setLic(await checkLicence(uid))
+
+  useEffect(() => {
+    void run()
+    const t = setInterval(() => {
+      if (navigator.onLine) void run()
+    }, 30 * 60 * 1000)
+    const on = () => void run()
+    window.addEventListener('online', on)
+    return () => {
+      clearInterval(t)
+      window.removeEventListener('online', on)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid])
+
+  useEffect(() => {
+    if (lic?.ok) startSync()
+  }, [lic?.ok])
+
+  if (!lic) return <div className="empty" style={{ paddingTop: 120 }}>Vérification de la licence…</div>
+  if (!lic.ok)
+    return <LicenceScreen uid={uid} email={session.user.email ?? ''} error={lic.error} onDone={run} />
+  return <AppShell />
+}
+
 export default function App() {
   const { session, ready } = useSession()
   if (!ready) return <div className="empty" style={{ paddingTop: 120 }}>Chargement…</div>
   if (!session) return <AuthScreen />
+  return <Gate session={session} />
+}
+
+function AppShell() {
   return (
     <HashRouter>
       <div className="app">
