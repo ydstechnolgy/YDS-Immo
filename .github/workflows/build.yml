@@ -67,7 +67,12 @@ jobs:
           VERSION_CODE: ${{ github.run_number }}
         run: |
           chmod +x gradlew
-          if [ -n "$KEYSTORE_FILE" ]; then ./gradlew assembleRelease; else ./gradlew assembleDebug; fi
+          task=assembleDebug; [ -n "$KEYSTORE_FILE" ] && task=assembleRelease
+          if ! ./gradlew $task --no-daemon > "$RUNNER_TEMP/gradle.log" 2>&1; then
+            msg=$(grep -E "error|Error|wrong|FAILED|What went|not found|license" "$RUNNER_TEMP/gradle.log" | head -15 | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=Gradle::$msg"
+            exit 1
+          fi
       - name: Nom stable
         run: |
           mkdir out
