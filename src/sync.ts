@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Table } from 'dexie'
 import { SYNC_TABLES, REMOTE_FLAG, clearLocalData, db, onLocalChange, type SyncTable } from './db'
 import { supabase } from './supabase'
+import { deleteQueuedPhotos, isLocalPhoto, pendingPhotoCount, uploadPendingPhotos } from './photos'
 
 export type SyncState = 'idle' | 'syncing' | 'offline' | 'error'
 export interface SyncInfo {
@@ -63,7 +64,14 @@ async function pull(uid: string) {
               continue
             }
             if (!local || (local.updatedAt ?? 0) < Number(r.updated_at)) {
-              await tbl(name).put({ ...(r.data as Row), id: r.id, updatedAt: Number(r.updated_at) })
+              const rec: Row = { ...(r.data as Row), id: r.id, updatedAt: Number(r.updated_at) }
+              if (name === 'properties' && local) {
+                // Une photo prise ici et pas encore envoyée ne doit pas disparaître
+                const mine = ((local.photos as string[] | undefined) ?? []).filter(isLocalPhoto)
+                const theirs = (rec.photos as string[] | undefined) ?? []
+                if (mine.length) rec.photos = [...theirs, ...mine.filter((x) => !theirs.includes(x))]
+              }
+              await tbl(name).put(rec)
             }
           }
         })
@@ -100,7 +108,10 @@ async function push(uid: string) {
         chunk.map((r) => ({
           id: r.id,
           user_id: uid,
-          data: r,
+          data:
+            name === 'properties'
+              ? { ...r, photos: ((r.photos as string[] | undefined) ?? []).filter((x) => !isLocalPhoto(x)) }
+              : r,
           updated_at: r.updatedAt ?? Date.now(),
           deleted: false,
         })),
@@ -133,8 +144,20 @@ export async function syncNow(): Promise<boolean> {
   setInfo({ state: 'syncing', error: '' })
   try {
     await pull(uid) // d'abord récupérer ce qui est plus récent ailleurs
+    // Les photos ne doivent jamais bloquer la synchro des données : on réessaiera plus tard
+    let photoWarning = ''
+    try {
+      await uploadPendingPhotos(uid)
+    } catch {
+      photoWarning = "Certaines photos n'ont pas encore été envoyées. Elles partiront à la prochaine synchronisation."
+    }
     await push(uid)
-    setInfo({ state: 'idle', lastSync: Date.now(), error: '' })
+    try {
+      await deleteQueuedPhotos()
+    } catch {
+      /* réessayé à la prochaine synchro */
+    }
+    setInfo({ state: 'idle', lastSync: Date.now(), error: photoWarning })
     return true
   } catch (e) {
     const msg = e instanceof Error ? e.message : (e as { message?: string })?.message || 'Erreur inconnue'
@@ -159,7 +182,7 @@ export async function pendingCount(): Promise<number> {
   const { data } = await supabase.auth.getSession()
   const uid = data.session?.user.id
   if (!uid) return 0
-  let n = await db.deletions.count()
+  let n = (await db.deletions.count()) + (await pendingPhotoCount())
   for (const name of SYNC_TABLES) {
     n += await tbl(name).where('updatedAt').above(getNum(key(uid, 'push', name))).count()
   }
@@ -193,7 +216,7 @@ export async function signOutSafely(): Promise<{ ok: boolean; message?: string }
   if (left > 0) {
     return {
       ok: false,
-      message: `${left} modification(s) ne sont pas encore envoyées. Connecte-toi à internet et réessaie, sinon elles seraient perdues.`,
+      message: `${left} modification(s) ou photo(s) ne sont pas encore envoyées. Connecte-toi à internet et réessaie, sinon elles seraient perdues.`,
     }
   }
   await clearLocalData()

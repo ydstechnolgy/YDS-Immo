@@ -14,7 +14,7 @@ suspendre et réactiver une licence.
 
 ## Mise en place
 1. Dans Supabase (SQL Editor), lancer dans l'ordre : `schema.sql`, `schema-licence.sql`, `schema-admin.sql`,
-   puis `schema-licence-v2.sql`.
+   puis `schema-licence-v2.sql`, puis `schema-storage.sql` (photos des biens).
 2. Créer ton compte (Supabase > Authentication > Users > Add user, avec « Auto Confirm User »).
 3. Te donner les droits admin (SQL Editor) :
    `insert into public.admins (user_id) select id from auth.users where email = 'TON-EMAIL' returning user_id;`

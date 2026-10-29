@@ -1,7 +1,8 @@
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, ImageIcon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { statusLabel } from './types'
+import { usePhoto } from './photos'
 
 export function Top({ title, back = true, right }: { title: string; back?: boolean; right?: ReactNode }) {
   const nav = useNavigate()
@@ -68,4 +69,18 @@ export const settings = {
     rate: Number(localStorage.getItem('yds.rate') || '0'),
   }),
   set: (k: 'agentName' | 'agentPhone' | 'rate', v: string) => localStorage.setItem(`yds.${k}`, v),
+}
+
+// Affiche une photo (locale ou stockée sur le serveur). Pendant le chargement ou sans internet : un cadre vide.
+export function PhotoImg({ photo, className, placeholder }: { photo?: string; className?: string; placeholder?: boolean }) {
+  const src = usePhoto(photo)
+  if (src) return <img className={className} src={src} alt="" />
+  if (placeholder) {
+    return (
+      <div className={`${className ?? ''} ph`}>
+        <ImageIcon />
+      </div>
+    )
+  }
+  return <div className={`${className ?? ''} ph`} style={{ minWidth: 160, height: 160, background: 'var(--panel2)', borderRadius: 12 }} />
 }

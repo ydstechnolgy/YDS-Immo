@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Camera, Crosshair, ImageIcon, MapPin, Phone, Plus, Share2, Trash2, MessageCircle } from 'lucide-react'
+import { Camera, Crosshair, MapPin, Phone, Plus, Share2, Trash2, MessageCircle } from 'lucide-react'
 import { db, newId } from '../db'
 import {
   EQUIPMENTS,
@@ -11,7 +11,8 @@ import {
   type Property,
   type Status,
 } from '../types'
-import { Empty, Field, NumInput, StatusBadge, Top, confirmDelete, settings } from '../ui'
+import { Empty, Field, NumInput, PhotoImg, StatusBadge, Top, confirmDelete, settings } from '../ui'
+import { isRemotePhoto, queuePhotoDeletes } from '../photos'
 import {
   buildFlyer,
   compressImage,
@@ -60,7 +61,7 @@ export function PropertyList() {
       {list.length === 0 && <Empty text="Aucun bien pour le moment. Appuie sur + pour en ajouter un." />}
       {list.map((p) => (
         <Link key={p.id} to={`/biens/${p.id}`} className="card click row" style={{ display: 'flex' }}>
-          {p.photos[0] ? <img className="thumb" src={p.photos[0]} alt="" /> : <div className="thumb ph"><ImageIcon /></div>}
+          <PhotoImg className="thumb" photo={p.photos[0]} placeholder />
           <div className="grow">
             <div className="row between">
               <strong>{p.title || kindLabel(p.kind)}</strong>
@@ -83,6 +84,8 @@ export function PropertyList() {
     </>
   )
 }
+
+const MAX_PHOTOS = 12
 
 const emptyProperty = (): Property => ({
   kind: 'maison',
@@ -134,8 +137,10 @@ export function PropertyForm() {
 
   const addPhotos = async (files: FileList | null) => {
     if (!files) return
+    const room = MAX_PHOTOS - form.photos.length
+    if (room <= 0) return alert(`Tu peux ajouter ${MAX_PHOTOS} photos au maximum par bien.`)
     const added: string[] = []
-    for (const f of Array.from(files)) added.push(await compressImage(f))
+    for (const f of Array.from(files).slice(0, room)) added.push(await compressImage(f))
     set('photos', [...form.photos, ...added])
   }
 
@@ -146,7 +151,9 @@ export function PropertyForm() {
     if (!form.price) return alert('Indique le prix ou le loyer.')
     const data = { ...form, updatedAt: Date.now() }
     if (id) {
+      const removed = (existing?.photos ?? []).filter((x) => isRemotePhoto(x) && !form.photos.includes(x))
       await db.properties.put(data)
+      await queuePhotoDeletes(removed)
       nav(`/biens/${id}`, { replace: true })
     } else {
       const createdId = await db.properties.add({ ...data, id: newId() })
@@ -292,7 +299,7 @@ export function PropertyForm() {
         <div className="photos" style={{ marginBottom: 10 }}>
           {form.photos.map((src, i) => (
             <div className="rm" key={i}>
-              <img src={src} alt="" />
+              <PhotoImg photo={src} />
               <button onClick={() => set('photos', form.photos.filter((_, j) => j !== i))}>✕</button>
             </div>
           ))}
@@ -348,6 +355,7 @@ export function PropertyDetail() {
 
   const remove = async () => {
     if (!confirmDelete('ce bien')) return
+    await queuePhotoDeletes(p.photos)
     await db.visits.where('propertyId').equals(p.id!).delete()
     await db.commissions.where('propertyId').equals(p.id!).delete()
     await db.properties.delete(p.id!)
@@ -367,7 +375,7 @@ export function PropertyDetail() {
       {p.photos.length > 0 && (
         <div className="photos" style={{ marginBottom: 12 }}>
           {p.photos.map((s, i) => (
-            <img key={i} src={s} alt="" />
+            <PhotoImg key={i} photo={s} />
           ))}
         </div>
       )}

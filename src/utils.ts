@@ -1,5 +1,6 @@
 import type { Client, Property } from './types'
 import { kindLabel } from './types'
+import { resolvePhoto } from './photos'
 
 export const fcfa = (n: number) =>
   `${Math.round(n || 0).toLocaleString('fr-FR').replace(/ | /g, ' ')} FCFA`
@@ -82,7 +83,8 @@ export const buildFlyer = async (p: Property, agentName: string, agentPhone: str
   g.fillStyle = '#0f1b33'
   g.fillRect(0, 0, W, H)
 
-  if (p.photos[0]) {
+  const cover = p.photos[0] ? await resolvePhoto(p.photos[0]) : null
+  if (cover) {
     await new Promise<void>((res) => {
       const im = new Image()
       im.onload = () => {
@@ -98,7 +100,7 @@ export const buildFlyer = async (p: Property, agentName: string, agentPhone: str
         res()
       }
       im.onerror = () => res()
-      im.src = p.photos[0]
+      im.src = cover
     })
   } else {
     g.fillStyle = '#1a2b4d'

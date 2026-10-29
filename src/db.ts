@@ -12,6 +12,16 @@ export interface Deletion {
   updatedAt: number
 }
 
+// Copie locale d'une photo déjà envoyée au serveur (pour l'afficher sans internet)
+export interface PhotoCache {
+  ref: string // "sb:<chemin>"
+  dataUrl: string
+}
+// Photo à supprimer du serveur dès que possible
+export interface PhotoDelete {
+  ref: string
+}
+
 class YdsImmoDB extends Dexie {
   owners!: Table<Owner, string>
   properties!: Table<Property, string>
@@ -19,6 +29,8 @@ class YdsImmoDB extends Dexie {
   visits!: Table<Visit, string>
   commissions!: Table<Commission, string>
   deletions!: Table<Deletion, string>
+  photoCache!: Table<PhotoCache, string>
+  photoDeletes!: Table<PhotoDelete, string>
 
   constructor() {
     super('yds-immo-v2')
@@ -29,6 +41,10 @@ class YdsImmoDB extends Dexie {
       visits: 'id, propertyId, clientId, date, updatedAt',
       commissions: 'id, propertyId, date, updatedAt',
       deletions: 'key',
+    })
+    this.version(2).stores({
+      photoCache: 'ref',
+      photoDeletes: 'ref',
     })
   }
 }
@@ -46,6 +62,8 @@ export const onLocalChange = (fn: () => void) => {
   listeners.push(fn)
 }
 const notify = () => listeners.forEach((fn) => fn())
+// Demande une synchronisation (utilisé quand seule une photo à supprimer a changé)
+export const requestSync = notify
 
 for (const name of SYNC_TABLES) {
   const table = db[name] as Table<{ id?: string; updatedAt?: number }, string>
@@ -76,8 +94,17 @@ for (const name of SYNC_TABLES) {
 }
 
 export async function clearLocalData() {
-  await db.transaction('rw', [...SYNC_TABLES.map((t) => db[t]), db.deletions], async (tx) => {
-    ;(tx as unknown as Record<string, unknown>)[REMOTE_FLAG] = true
-    await Promise.all([...SYNC_TABLES.map((t) => db[t].clear()), db.deletions.clear()])
-  })
+  await db.transaction(
+    'rw',
+    [...SYNC_TABLES.map((t) => db[t]), db.deletions, db.photoCache, db.photoDeletes],
+    async (tx) => {
+      ;(tx as unknown as Record<string, unknown>)[REMOTE_FLAG] = true
+      await Promise.all([
+        ...SYNC_TABLES.map((t) => db[t].clear()),
+        db.deletions.clear(),
+        db.photoCache.clear(),
+        db.photoDeletes.clear(),
+      ])
+    },
+  )
 }
