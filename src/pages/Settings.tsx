@@ -5,6 +5,7 @@ import { supabase } from '../supabase'
 import { signOutSafely, syncNow, useSyncInfo } from '../sync'
 import { deviceKind, formatExpiry, readCache } from '../licence'
 import { Field, Top, settings } from '../ui'
+import { APP_VERSION, isCapacitor, isTauri } from '../platform'
 
 export function SettingsPage() {
   const s = settings.get()
@@ -111,6 +112,9 @@ export function SettingsPage() {
           <input type="file" accept="application/json" hidden onChange={(e) => importAll(e.target.files?.[0])} />
         </label>
       </div>
+      <p className="muted small" style={{ textAlign: 'center', marginTop: 28 }}>
+        YDS Immo · version {APP_VERSION} · {isTauri() ? 'application Windows' : isCapacitor() ? 'application Android' : 'version web'}
+      </p>
     </>
   )
 }

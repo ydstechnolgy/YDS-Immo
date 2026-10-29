@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#0b1426"/>
+  <!-- maison -->
+  <path d="M512 214 L828 478 H748 V780 H276 V478 H196 Z" fill="#d4a843"/>
+  <!-- porte en forme de trou de serrure -->
+  <circle cx="512" cy="548" r="62" fill="#0b1426"/>
+  <path d="M484 590 H540 L556 722 H468 Z" fill="#0b1426"/>
+</svg>

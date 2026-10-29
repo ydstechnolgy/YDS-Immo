@@ -13,6 +13,7 @@ import {
 } from '../types'
 import { Empty, Field, NumInput, PhotoImg, StatusBadge, Top, confirmDelete, settings } from '../ui'
 import { isRemotePhoto, queuePhotoDeletes } from '../photos'
+import { isCapacitor, shareNative } from '../platform'
 import {
   buildFlyer,
   compressImage,
@@ -337,7 +338,9 @@ export function PropertyDetail() {
     try {
       const blob = await buildFlyer(p, me.name, me.phone)
       const file = new File([blob], 'bien.jpg', { type: 'image/jpeg' })
-      if (navigator.canShare?.({ files: [file] })) {
+      if (isCapacitor()) {
+        await shareNative(blob, text, p.title || kindLabel(p.kind))
+      } else if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], text })
       } else {
         const a = document.createElement('a')
