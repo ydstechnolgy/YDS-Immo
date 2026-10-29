@@ -10,7 +10,7 @@ import { CommissionForm, CommissionList } from './pages/Commissions'
 import { SettingsPage } from './pages/Settings'
 import { AuthScreen } from './pages/Auth'
 import { LicenceScreen } from './pages/LicenceScreen'
-import { checkLicence, clearLicenceCache, type LicenceResult } from './licence'
+import { checkLicence, clearLicenceCache, formatExpiry, type LicenceResult } from './licence'
 import { supabase } from './supabase'
 import { prepareForUser, startSync, useSyncInfo } from './sync'
 import type { Session } from '@supabase/supabase-js'
@@ -77,8 +77,8 @@ function Gate({ session }: { session: Session }) {
 
   if (!lic) return <div className="empty" style={{ paddingTop: 120 }}>Vérification de la licence…</div>
   if (!lic.ok)
-    return <LicenceScreen uid={uid} email={session.user.email ?? ''} error={lic.error} onDone={run} />
-  return <AppShell />
+    return <LicenceScreen uid={uid} email={session.user.email ?? ''} initial={lic} onDone={run} />
+  return <AppShell graceUntil={lic.grace ? lic.graceUntil : undefined} expiresAt={lic.expiresAt} />
 }
 
 export default function App() {
@@ -88,7 +88,7 @@ export default function App() {
   return <Gate session={session} />
 }
 
-function AppShell() {
+function AppShell({ graceUntil, expiresAt }: { graceUntil?: string; expiresAt?: string }) {
   return (
     <HashRouter>
       <div className="app">
@@ -107,6 +107,12 @@ function AppShell() {
         </nav>
 
         <main className="main">
+          {graceUntil && (
+            <div className="banner">
+              Ta licence a expiré le {formatExpiry(expiresAt)}. Renouvelle-la avant le {formatExpiry(graceUntil)}, sinon le
+              logiciel sera bloqué. Contacte YDS Tech.
+            </div>
+          )}
           <div className="syncbar"><SyncPill /></div>
           <Routes>
             <Route path="/" element={<Home />} />
