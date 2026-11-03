@@ -14,7 +14,7 @@ const translate = (msg: string) => {
 }
 
 export function AuthScreen() {
-  const [mode, setMode] = useState<'login' | 'signup' | 'reset'>('login')
+  const [mode, setMode] = useState<'login' | 'signup' | 'reset' | 'confirm'>('login')
   const [code, setCode] = useState('')
   const [codeSent, setCodeSent] = useState(false)
   const [email, setEmail] = useState('')
@@ -33,13 +33,22 @@ export function AuthScreen() {
     try {
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-        if (error) setMsg(translate(error.message))
+        if (error) {
+          if (error.message.toLowerCase().includes('email not confirmed')) {
+            await supabase.auth.resend({ type: 'signup', email: email.trim() })
+            setCode('')
+            setInfo('Ton email n\'est pas encore confirmé. Un nouveau code vient de partir.')
+            setMode('confirm')
+          } else setMsg(translate(error.message))
+        }
       } else {
         const { data, error } = await supabase.auth.signUp({ email: email.trim(), password })
         if (error) setMsg(translate(error.message))
         else if (!data.session) {
-          setInfo('Compte créé. Regarde ta boîte mail et clique sur le lien de confirmation, puis connecte-toi.')
-          setMode('login')
+          // Confirmation de l'email par un code à 6 chiffres
+          setCode('')
+          setInfo('Compte créé. Un code à 6 chiffres vient de partir par email (regarde aussi les spams).')
+          setMode('confirm')
         }
       }
     } catch (err) {
@@ -82,12 +91,67 @@ export function AuthScreen() {
     setBusy(false)
   }
 
+  const confirmEmail = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setMsg('')
+    setInfo('')
+    if (!/^\d{6}$/.test(code.trim())) return setMsg('Le code a 6 chiffres.')
+    setBusy(true)
+    try {
+      const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'signup' })
+      if (error) setMsg('Code incorrect ou expiré. Demande un nouveau code.')
+    } catch (err) {
+      setMsg(translate(err instanceof Error ? err.message : 'Erreur'))
+    }
+    setBusy(false)
+  }
+
+  const resendConfirm = async () => {
+    setMsg('')
+    setInfo('')
+    const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim() })
+    if (error) setMsg(translate(error.message))
+    else setInfo('Nouveau code envoyé.')
+  }
+
   const backToLogin = () => {
     setMsg('')
     setInfo('')
     setCode('')
     setCodeSent(false)
     setMode('login')
+  }
+
+  if (mode === 'confirm') {
+    return (
+      <div style={{ maxWidth: 420, margin: '0 auto', padding: '56px 20px' }}>
+        <div className="brand" style={{ fontSize: '2rem', textAlign: 'center', paddingBottom: 6 }}>
+          YDS <b>Immo</b>
+        </div>
+        <p className="muted" style={{ textAlign: 'center', marginTop: 0 }}>
+          Confirme ton email
+        </p>
+        <form onSubmit={confirmEmail} style={{ marginTop: 26 }}>
+          <p className="muted small">Code envoyé à {email}</p>
+          <Field label="Code reçu par email (6 chiffres)">
+            <input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} />
+          </Field>
+          {msg && <p style={{ color: 'var(--bad)' }}>{msg}</p>}
+          {info && <p style={{ color: 'var(--ok)' }}>{info}</p>}
+          <button className="btn block" style={{ marginTop: 20 }} disabled={busy}>
+            {busy ? 'Un instant…' : 'Confirmer'}
+          </button>
+        </form>
+        <div className="row between" style={{ marginTop: 18 }}>
+          <a href="#" style={{ color: 'var(--gold)', fontWeight: 600 }} onClick={(e) => { e.preventDefault(); backToLogin() }}>
+            Retour
+          </a>
+          <a href="#" className="muted" onClick={(e) => { e.preventDefault(); void resendConfirm() }}>
+            Renvoyer le code
+          </a>
+        </div>
+      </div>
+    )
   }
 
   if (mode === 'reset') {
