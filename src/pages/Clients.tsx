@@ -8,7 +8,7 @@ import { Empty, Field, NumInput, StatusBadge, Top, confirmDelete } from '../ui'
 import { fcfa, matchScore, waLink } from '../utils'
 
 export function ClientList() {
-  const clients = useLiveQuery(() => db.clients.orderBy('createdAt').reverse().toArray(), [])
+  const clients = useLiveQuery(async () => (await db.clients.toArray()).sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0)), [])
   const [q, setQ] = useState('')
   const list = (clients ?? []).filter((c) => `${c.name} ${c.phone} ${c.quarter}`.toLowerCase().includes(q.toLowerCase()))
   return (

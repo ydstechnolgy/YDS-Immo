@@ -4,6 +4,7 @@ import { Building2, Home as HomeIcon, MoreHorizontal, UserSearch, CalendarCheck,
 import { Home, More } from './pages/Home'
 import { PropertyDetail, PropertyForm, PropertyList } from './pages/Properties'
 import { OwnerDetail, OwnerForm, OwnerList } from './pages/Owners'
+import { RouteGuard } from './ErrorBoundary'
 import { ClientDetail, ClientForm, ClientList } from './pages/Clients'
 import { VisitForm, VisitList } from './pages/Visits'
 import { CommissionForm, CommissionList } from './pages/Commissions'
@@ -114,6 +115,7 @@ function AppShell({ graceUntil, expiresAt }: { graceUntil?: string; expiresAt?: 
             </div>
           )}
           <div className="syncbar"><SyncPill /></div>
+          <RouteGuard>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/biens" element={<PropertyList />} />
@@ -135,6 +137,7 @@ function AppShell({ graceUntil, expiresAt }: { graceUntil?: string; expiresAt?: 
             <Route path="/reglages" element={<SettingsPage />} />
             <Route path="/plus" element={<More />} />
           </Routes>
+          </RouteGuard>
         </main>
 
         <nav className="bottom">
