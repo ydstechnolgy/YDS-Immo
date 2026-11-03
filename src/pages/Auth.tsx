@@ -45,9 +45,9 @@ export function AuthScreen() {
         const { data, error } = await supabase.auth.signUp({ email: email.trim(), password })
         if (error) setMsg(translate(error.message))
         else if (!data.session) {
-          // Confirmation de l'email par un code à 6 chiffres
+          // Confirmation de l'email par un code
           setCode('')
-          setInfo('Compte créé. Un code à 6 chiffres vient de partir par email (regarde aussi les spams).')
+          setInfo('Compte créé. Un code vient de partir par email (regarde aussi les spams).')
           setMode('confirm')
         }
       }
@@ -57,7 +57,7 @@ export function AuthScreen() {
     setBusy(false)
   }
 
-  // Mot de passe oublié : 1) on envoie un code à 6 chiffres par email, 2) il le tape avec son nouveau mot de passe
+  // Mot de passe oublié : 1) on envoie un code par email, 2) il le tape avec son nouveau mot de passe
   const sendCode = async () => {
     setMsg('')
     setInfo('')
@@ -67,14 +67,14 @@ export function AuthScreen() {
     setBusy(false)
     if (error) return setMsg(translate(error.message))
     setCodeSent(true)
-    setInfo('Un code à 6 chiffres vient de partir. Regarde ta boîte mail (et les spams).')
+    setInfo('Un code vient de partir. Regarde ta boîte mail (et les spams).')
   }
 
   const resetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setMsg('')
     setInfo('')
-    if (!/^\d{6}$/.test(code.trim())) return setMsg('Le code a 6 chiffres.')
+    if (!/^\d{6,8}$/.test(code.trim())) return setMsg('Entre le code reçu par email (6 à 8 chiffres).')
     if (password.length < 6) return setMsg('Le nouveau mot de passe doit avoir au moins 6 caractères.')
     setBusy(true)
     try {
@@ -95,7 +95,7 @@ export function AuthScreen() {
     e.preventDefault()
     setMsg('')
     setInfo('')
-    if (!/^\d{6}$/.test(code.trim())) return setMsg('Le code a 6 chiffres.')
+    if (!/^\d{6,8}$/.test(code.trim())) return setMsg('Entre le code reçu par email (6 à 8 chiffres).')
     setBusy(true)
     try {
       const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'signup' })
@@ -133,8 +133,8 @@ export function AuthScreen() {
         </p>
         <form onSubmit={confirmEmail} style={{ marginTop: 26 }}>
           <p className="muted small">Code envoyé à {email}</p>
-          <Field label="Code reçu par email (6 chiffres)">
-            <input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} />
+          <Field label="Code reçu par email">
+            <input inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} />
           </Field>
           {msg && <p style={{ color: 'var(--bad)' }}>{msg}</p>}
           {info && <p style={{ color: 'var(--ok)' }}>{info}</p>}
@@ -169,8 +169,8 @@ export function AuthScreen() {
           </Field>
           {codeSent && (
             <>
-              <Field label="Code reçu par email (6 chiffres)">
-                <input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} />
+              <Field label="Code reçu par email">
+                <input inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} />
               </Field>
               <Field label="Nouveau mot de passe">
                 <input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />

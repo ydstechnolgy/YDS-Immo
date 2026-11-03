@@ -17,4 +17,4 @@ Supabase > Authentication > Emails > Templates > **Reset Password** (ou « Recov
 </div>
 ```
 
-Le code a 6 chiffres (Authentication > Sign In / Providers > Email : « Email OTP Length » = 6).
+Le code peut avoir 6 à 8 chiffres : l’application accepte les deux (réglage Supabase « Email OTP Length »).
