@@ -99,7 +99,7 @@ function fromServer(uid: string, d: ServerReply | null): LicenceResult {
 export async function checkLicence(uid: string): Promise<LicenceResult> {
   if (!navigator.onLine) return evaluateCache(readCache(), uid)
   try {
-    const { data, error } = await supabase.rpc('check_licence', { p_device_id: deviceId() })
+    const { data, error } = await supabase.rpc('check_licence', { p_device_id: deviceId(), p_kind: deviceKind() })
     if (error) throw error
     const r = fromServer(uid, data as ServerReply)
     if (!r.ok) clearLicenceCache()
