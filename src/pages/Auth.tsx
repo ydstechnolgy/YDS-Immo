@@ -14,7 +14,9 @@ const translate = (msg: string) => {
 }
 
 export function AuthScreen() {
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [mode, setMode] = useState<'login' | 'signup' | 'reset'>('login')
+  const [code, setCode] = useState('')
+  const [codeSent, setCodeSent] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
@@ -46,11 +48,89 @@ export function AuthScreen() {
     setBusy(false)
   }
 
-  const forgot = async () => {
-    if (!email.includes('@')) return setMsg("Écris d'abord ton email ci-dessus.")
+  // Mot de passe oublié : 1) on envoie un code à 6 chiffres par email, 2) il le tape avec son nouveau mot de passe
+  const sendCode = async () => {
+    setMsg('')
+    setInfo('')
+    if (!email.includes('@')) return setMsg("Écris ton adresse email.")
+    setBusy(true)
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim())
-    if (error) setMsg(translate(error.message))
-    else setInfo('Un email pour changer ton mot de passe vient de partir.')
+    setBusy(false)
+    if (error) return setMsg(translate(error.message))
+    setCodeSent(true)
+    setInfo('Un code à 6 chiffres vient de partir. Regarde ta boîte mail (et les spams).')
+  }
+
+  const resetPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setMsg('')
+    setInfo('')
+    if (!/^\d{6}$/.test(code.trim())) return setMsg('Le code a 6 chiffres.')
+    if (password.length < 6) return setMsg('Le nouveau mot de passe doit avoir au moins 6 caractères.')
+    setBusy(true)
+    try {
+      const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'recovery' })
+      if (error) {
+        setMsg('Code incorrect ou expiré. Demande un nouveau code.')
+      } else {
+        const { error: e2 } = await supabase.auth.updateUser({ password })
+        if (e2) setMsg(translate(e2.message))
+      }
+    } catch (err) {
+      setMsg(translate(err instanceof Error ? err.message : 'Erreur'))
+    }
+    setBusy(false)
+  }
+
+  const backToLogin = () => {
+    setMsg('')
+    setInfo('')
+    setCode('')
+    setCodeSent(false)
+    setMode('login')
+  }
+
+  if (mode === 'reset') {
+    return (
+      <div style={{ maxWidth: 420, margin: '0 auto', padding: '56px 20px' }}>
+        <div className="brand" style={{ fontSize: '2rem', textAlign: 'center', paddingBottom: 6 }}>
+          YDS <b>Immo</b>
+        </div>
+        <p className="muted" style={{ textAlign: 'center', marginTop: 0 }}>
+          Changer ton mot de passe
+        </p>
+        <form onSubmit={codeSent ? resetPassword : (e) => { e.preventDefault(); void sendCode() }} style={{ marginTop: 26 }}>
+          <Field label="Email">
+            <input type="email" autoComplete="email" value={email} disabled={codeSent} onChange={(e) => setEmail(e.target.value)} />
+          </Field>
+          {codeSent && (
+            <>
+              <Field label="Code reçu par email (6 chiffres)">
+                <input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} />
+              </Field>
+              <Field label="Nouveau mot de passe">
+                <input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              </Field>
+            </>
+          )}
+          {msg && <p style={{ color: 'var(--bad)' }}>{msg}</p>}
+          {info && <p style={{ color: 'var(--ok)' }}>{info}</p>}
+          <button className="btn block" style={{ marginTop: 20 }} disabled={busy}>
+            {busy ? 'Un instant…' : codeSent ? 'Changer le mot de passe' : 'Recevoir le code'}
+          </button>
+        </form>
+        <div className="row between" style={{ marginTop: 18 }}>
+          <a href="#" style={{ color: 'var(--gold)', fontWeight: 600 }} onClick={(e) => { e.preventDefault(); backToLogin() }}>
+            Retour
+          </a>
+          {codeSent && (
+            <a href="#" className="muted" onClick={(e) => { e.preventDefault(); void sendCode() }}>
+              Renvoyer le code
+            </a>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -100,7 +180,10 @@ export function AuthScreen() {
             className="muted"
             onClick={(e) => {
               e.preventDefault()
-              void forgot()
+              setMsg('')
+              setInfo('')
+              setPassword('')
+              setMode('reset')
             }}
           >
             Mot de passe oublié ?
